@@ -1,34 +1,11 @@
 from pox.core import core
 from pox.lib.packet import lldp
 from pox.lib.util import dpidToStr
-import logging
+import pox.log.color
 import pox.lib.packet.ethernet as eth
 import pox.openflow.libopenflow_01 as of
-import sys
 
-class Colours(object):
-    """
-    Helper class to colour the log messages.
-    """
-    GREEN = "\033[1;92m" #"\033[46m"
-    BLUE = "\033[1;34m"
-    ORANGE = "\033[1;33m"
-    ENDC = "\033[1;0m"
-
-    def orange(self, message):
-        return self.colour(message, self.ORANGE)
-
-    def green(self, message):
-        return self.colour(message, self.GREEN)
-
-    def blue(self, message):
-        return self.colour(message, self.BLUE)
-    
-    def colour(self, message, colour):
-        return "%s%s%s" % (colour, message, self.ENDC)
-
-
-class L2FGRE(object):
+class L2FGREPing(object):
     """
     Toy example of a super simple OpenFlow switch that 
     installs rules to allow communication between two hosts.
@@ -36,14 +13,13 @@ class L2FGRE(object):
     to flow in two ways between two specific locations.
     """
 
-    def __init__(self, reactive, *args, **kwargs):
-        ## Define logger and level
+    def __init__(self, vlan, reactive, *args, **kwargs):
+        ## Define logger (defaults to current path)
         self.log = core.getLogger()
-        self.log.setLevel(logging.INFO)
-        self.colour = Colours()
         ## Registers every method exposed by the class
 #        core.openflow.addListeners(self)
         self.reactive = reactive
+        self.vlan = int(vlan)
         ## Registers a method based upon the 'reactive' param
         if self.reactive:
             self.ctrl_mode = "reactive"
@@ -51,16 +27,11 @@ class L2FGRE(object):
         else:
             self.ctrl_mode = "proactive"
             core.openflow.addListenerByName("ConnectionUp", self._handle_ConnectionUp)
-        self.log.info(self.colour.blue("Pre-configured toy switch for FGRE 2015 (mode=%s)." % self.ctrl_mode))
-        self.log.info(self.colour.blue("Pre-configure dummy switch to use as toy example for FGRE 2015."))
-        
+        self.log.info("Pre-configured toy switch for FGRE 2015 (mode=%s, vlan=%s)." % (self.ctrl_mode, self.vlan))
         ## Constants section
         # Define value of protocol number assigned to IP and LLDP traffic
         self.ip_proto = 2048 #0x0800
         self.lldp_proto = 35020 #0x88cc
-
-        # TODO: Replace by your granted VLAN
-        self.vlan = 1798
     
     def __dpid_to_int(self, dpid):
         """
@@ -86,9 +57,9 @@ class L2FGRE(object):
         # Retrieve port for packet on rule failure
         if handler_type == "PacketIn":
             in_port = event.port
-            self.log.info(self.colour.green("Receiving packet from dpid=%s, in_port=%s" % (dpid, in_port)))
+            self.log.debug("Receiving packet from dpid=%s, in_port=%s" % (dpid, in_port))
         else:
-            self.log.info(self.colour.green("Detecting dpid=%s" % dpid))
+            self.log.debug("Detecting dpid=%s" % dpid)
 
         if dpid == 1:
           if handler_type == "PacketIn":
@@ -166,8 +137,8 @@ class L2FGRE(object):
         msg = self.__define_match(event, vlan, in_port, out_port)
         # Send flowmod
         event.connection.send(msg)
-        self.log.info(self.colour.orange("Installing rule [dpid=%s]: vlan=%s, in=%s <-> out=%s" % 
-            (dpid, msg.match.dl_vlan, msg.match.in_port, msg.match.out_port)))
+        self.log.debug("Installing rule [dpid=%s]: vlan=%s, in=%s <-> out=%s" % 
+            (dpid, msg.match.dl_vlan, msg.match.in_port, msg.match.out_port))
     
     def __insert_rule_2_ways(self, event, vlan, in_port, out_port):
         """
@@ -213,10 +184,15 @@ class L2FGRE(object):
         packet = event.connection
         self.__define_rules("ConnectionUp", event)
 
-def launch(proactive = False):
+def launch(vlan, proactive = False):
     """
     POX typical function to register listeners on events.
     Can use a 'proactive' parameter to define ctrl behaviour.
     """
+    # Launch log colour app
+    pox.log.color.launch()
+    pox.log.launch(format="[@@@bold@@@level%(name)-22s@@@reset] " +
+                        "@@@bold%(message)s@@@normal")
+    # Interpret reactive/proactive behaviour and pass to registered app
     reactive = not(proactive)
-    core.registerNew(L2FGRE, reactive)
+    core.registerNew(L2FGREPing, vlan, reactive)

@@ -29,11 +29,13 @@ Setting up a working environment
     
     ```
     # X is the interface of the VM that is connected to the dpid
-    ifconfig eth<X> up
+    eth_i=...
+    # VLAN is the VLAN ID you have been granted and using for your experiment
+    vlan=...
     
-    # VLAN is the VLAN ID you have used when defining your flow rules
-    vconfig add eth<X> <vlan> 
-    ifconfig eth<X>.<vlan> up
+    ifconfig $eth_i up
+    vconfig add $eth_i $vlan
+    ifconfig $eth_i.$vlan up
     
     # Chosen_IP is an IP of your choice, used to easily ping between VMs
     # Note that you should use IPs within the same subnet to ping the two machines
@@ -49,9 +51,10 @@ Setting up a working environment
         
     ```
     cd ~/fgre2015/pox
+    # VLAN is the VLAN ID you have been granted and using for your experiment
+    vlan=...
     # Reactive behaviour
-    python pox.py log.level --DEBUG forwarding.l2_fgre
+    python pox.py log.level --DEBUG forwarding.l2_fgre_ping --vlan=$vlan
     # Proactive behaviour
-    python pox.py log.level --DEBUG forwarding.l2_fgre --proactive
+    python pox.py log.level --DEBUG forwarding.l2_fgre_ping --proactive --vlan=$vlan
     ```
-  
