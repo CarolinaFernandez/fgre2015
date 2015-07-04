@@ -9,6 +9,10 @@ Setting up a working environment
 1. Log in to your virtual machine. Access with the user that created the VMs.
     
     ```
+    # Your_User is the user ID that created the machine
+    # This ID is used to access the VM via public keys
+
+    # Returned_IP is the IP of each VM that was returned to you after being created
     ssh <your_user>@<returned_ip>
     ```
 1. Update your environment
